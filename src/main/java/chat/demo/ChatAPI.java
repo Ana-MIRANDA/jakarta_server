@@ -5,78 +5,127 @@ import chat.demo.beans.MessageBean;
 import chat.demo.beans.UserBean;
 import chat.demo.dao.MessageDao;
 import chat.demo.dao.UserDao;
+
+import com.j256.ormlite.jdbc.JdbcConnectionSource;
 import org.springframework.web.bind.annotation.*;
 
 import java.io.IOException;
+
+//pour creer le idSession
 import java.sql.SQLException;
-import java.util.ArrayList;
+import java.util.List;
+import java.util.UUID; //(Universally unique identifier)
 
 @RestController //Permet de transformer une classe en WebService
 public class ChatAPI {
 
-    /* Era p fazer os testes mas como as funçoes nao sao sstatics nao da mas se as puser static dao erro
-    public static void main(String[] args){
-        test();
-    }*/
+
+    public static String createIdSession() {
+        // Creating a random UUID (Universally unique identifier).
+        UUID idSession = UUID.randomUUID();
+        String randomUUIDString = idSession.toString();
+        return randomUUIDString;
+    }
 
     DaoConnexion conexao = new DaoConnexion();
 
+
 //0.Faire un test: OK
     //http://localhost:8080/test
-
     @CrossOrigin(origins = "http://localhost:8100")
     @GetMapping("/test")
     public static String test() {
         System.out.println("/test");
+        createIdSession();
         return "test hello";
     }
 
 //____________________________________________
-//1. le serveur reçoit le message envoyé par l'utilisateur ce que permet de la sauvegarder
-        //tant qu'on a pas de BDD je cree une liste avec Postman qui  recoit como request body - no postman - {"sentBy" :  "toto", "content" : "salut!"}
+//1.le serveur reçoit le message envoyé par l'utilisateur ce que permet de la sauvegarder
 
 //http://localhost:8080/envoyerMsg
     @PostMapping("/envoyerMsg")
-    public Object envoyerMsg( @RequestBody MessageBean msg)  {
-        try {
-            System.out.println("content: "+msg.getContent()+" sentBy: "+msg.getUser().getPseudo());
-    //verificar se pseudo e null / vide antes de enviar msg
-           if(msg.getUser().getPseudo() == null || msg.getUser().getPseudo().equals("")){
-            throw new Exception("User vide/null");
-           }
-     //verificar se contente null / vide antes de enviar msg
-            if(msg.getContent() == null || msg.getContent().equals("")){
-                throw new Exception("Message vide/null");
-            }
+    public Object envoyerMsg( @RequestBody MessageBean msg) {
 
-            MessageDao.saveMsg(msg, conexao.createConnection() );
-           return null;
+        System.out.println(msg.getUser().getIdSession() + " " + msg.getUser().getPseudo() + " " + msg.getUser().getId() );
+        //pseudo null e id null - criar funçao
+        System.out.println(msg.getContent());
+
+        //Creer conexion
+        JdbcConnectionSource connectionSource = null;
+        try {
+            connectionSource = conexao.createConnection();
+        } catch (SQLException throwables) {
+            throwables.printStackTrace();
         }
 
+        //verifier donnees
+        try {
+            //verifier que le idSession n'est pas null/vide
+        if(msg.getUser().getIdSession() == null  || msg.getUser().getIdSession().trim().length()==0 ){
+            throw new Exception("Session vide/null");
+        }
+
+        //verifier si l'idSession est active/existe sur la BDD
+            List<UserBean> usersIdSession = UserDao.getUserByIdSession(msg.getUser().getIdSession(), connectionSource );
+        if(usersIdSession.isEmpty()){
+            throw new Exception("idSession doesn't exist!");
+        }
+        //get userId pour la BDD
+            msg.getUser().setId(usersIdSession.get(0).getId());
+
+        //get pseudo pour le msg
+            msg.getUser().setPseudo(usersIdSession.get(0).getPseudo());
+
+        //verifier si le contenu est null ou vide avant de sauvegarder msg
+            if(msg.getContent() == null || msg.getContent().trim().length()==0){
+                throw new Exception("Message vide/null");
+            }
+            MessageDao.saveMsg(msg, connectionSource);
+           return null;
+        }
         catch(Exception e) {
             e.printStackTrace();
             return new ErrorBean(e.getMessage());
 
-
-    //comment eviter lerreur de close connection
+    //fermer la connexion
         }finally{
             try {
-               conexao.closeConnection();
+                connectionSource.close();
             } catch (IOException e) {
                 e.printStackTrace();
             }
         }
-
     }
 
 //___________________________
-//2.quand on arrive a la pagehome on demande la liste de messages + aussi tester sur postman tant que nous avons pas de Bdd
+//2.quand on arrive a la pagehome on demande la liste de messages
 
     //http://localhost:8080/listeMsg
     @GetMapping("/listeMsg")
-    public Object demanderListeMsg()  {
+    public Object demanderListeMsg(@RequestBody UserBean u) throws Exception { //vai receber do cliente o idSession q permite veriifcar se o idSession e valido
+
+
+        //Creer conexion
+        JdbcConnectionSource connectionSource = null;
+        try {
+            connectionSource = conexao.createConnection();
+        } catch (SQLException throwables) {
+            throwables.printStackTrace();
+        }
+
+        //System.out.println("\nids: "+ userEmpty.getIdSession();
+        if(u.getIdSession() == null  || u.getIdSession().trim().length()==0){
+            throw new Exception("Session vide/null");
+        }
+        //verifier si idsession exists/est active BDD
+        if(UserDao.getUserByIdSession(u.getIdSession(), connectionSource).isEmpty()){
+            throw new Exception("idSession doesn't exist!");
+        }
+        //sil ny a pas d'erreurs envoie liste msgs
         try{
-            return MessageDao.getMsgList(conexao.createConnection()); //chamar a funçao que esta em chatDao
+
+            return MessageDao.getMsgList(connectionSource);
         }
         catch(Exception e) {
             e.printStackTrace();
@@ -85,50 +134,59 @@ public class ChatAPI {
         }
         finally {
             try {
-                conexao.closeConnection();
-            } catch (IOException e) { //como a conxao tb e de base de dados tem se por tb o try catch
+                connectionSource.close();
+            } catch (IOException e) {
                 e.printStackTrace();
             }
         }
         }
 
 //______________________________________
- // Registar uma conta verificar se pseudo e password estao bem preenchidos
+ // Register un compte - verifier données
 
     //http://localhost:8080/register
     @PostMapping("/register")
     public Object registerUser( @RequestBody UserBean userReceived)  {
+
+        //Creer conexion
+        JdbcConnectionSource connectionSource = null;
+        try {
+            connectionSource = conexao.createConnection();
+        } catch (SQLException throwables) {
+            throwables.printStackTrace();
+        }
+
+
         try {
             System.out.println("Pseudo: "+userReceived.getPseudo()+" password: "+userReceived.getPassword());
 
-            //verificar se pseudo e null / vide
-            if(userReceived.getPseudo() == null || userReceived.getPseudo().equals("")){
+            //pseudo null / vide
+            if(userReceived.getPseudo() == null || userReceived.getPseudo().trim().length()==0){
                 throw new Exception("Pseudo vide/null");
             }
-            //verificar se password null / vide antes de enviar msg
-            if(userReceived.getPassword() == null || userReceived.getPassword().equals("")){
+            //verifier password
+            if(userReceived.getPassword() == null || userReceived.getPassword().trim().length()==0){
                 throw new Exception("Password vide/null");
             }
 
-            //verifica se o user ja existe na BDD
-            if(UserDao.userExists(userReceived.getPseudo(), conexao.createConnection() )){
+            //si l'user existe deja sur la BDD
+            if(UserDao.userExists(userReceived.getPseudo(), connectionSource )){
                 throw new Exception("That pseudo already exists!");
             }
 
-            //criar utilisador na base de dados
-            UserDao.createUser(userReceived, conexao.createConnection());
-            return userReceived; //retorna o user recebido ja passado pela BD, com id pk na createUser ele recebe um id pk é metido na base de dados onde recebe o id.
-        }
+            //Creer un user
+            userReceived.setIdSession(createIdSession());//o idSession de userReceived é o resultado (string) da chamada da funçao getIdSession()
+            UserDao.createUpdateUser(userReceived, connectionSource); ///criar o user na BDD
+            return new UserBean(userReceived.getIdSession()); // meter spring.jackson.default-property-inclusion = NON_NULL na application.propreties patra nao retornar os valores nulls sn retorna id=null, pseudo=null,etc.Assim so retorna mesmo o idSession
 
+        }
         catch(Exception e) {
             e.printStackTrace();
             return new ErrorBean(e.getMessage());
-
-
             //comment eviter lerreur de close connection
         }finally{
             try {
-                conexao.closeConnection();
+                connectionSource.close();
             } catch (IOException e) {
                 e.printStackTrace();
             }
@@ -136,43 +194,54 @@ public class ChatAPI {
 
     }
 
-
  //______________________________________
  //http://localhost:8080/login
  @PostMapping("/login")
- public Object login( @RequestBody UserBean userReceived)  {
+ public Object login( @RequestBody UserBean userReceived)  { //retourne un onjet: soit un erreur soit un objet
+
+     //Creer conexion à la BDD faire les changements et la fermer à la fin. Si une tache a un erreur la connexion s'arrete et les autres taches nont pas lieu.
+     JdbcConnectionSource connectionSource = null;
+     try {
+         connectionSource = conexao.createConnection();
+     } catch (SQLException throwables) {
+         throwables.printStackTrace();
+     }
+
      try {
          System.out.println("Pseudo: "+userReceived.getPseudo()+" password: "+userReceived.getPassword());
 
-         //verificar se pseudo e null / vide
-         if(userReceived.getPseudo() == null || userReceived.getPseudo().equals("")){
+         //Verifier le pseudo
+         if(userReceived.getPseudo() == null || userReceived.getPseudo().trim().length()==0){
              throw new Exception("Pseudo vide/null");
          }
-         //verificar se password null / vide antes de enviar msg
-         if(userReceived.getPassword() == null || userReceived.getPassword().equals("")){
+         //verifier psw
+         if(userReceived.getPassword() == null || userReceived.getPassword().trim().length()==0){
              throw new Exception("Password vide/null");
          }
 
-         //verifica se o user ja existe na BDD
-         if(!UserDao.userExists(userReceived.getPseudo(), conexao.createConnection() )){
+         //verifier si suer existe deja
+         if(!UserDao.userExists(userReceived.getPseudo(),  connectionSource )){
              throw new Exception("That Pseudo does not exist!");
          }
 
-         //verificar o par pseudo+pass
-         if(UserDao.verifyAuthentification(userReceived, conexao.createConnection())){ //se for true, existe
-             return userReceived; //retorna todas as infos do user. ver como so retornar o id e o pseudo
-         } throw new Exception("User pseudo or password are incorrect!"); //se for return false da esta msg/exception
+         //verifier pair pseudo+pass
+         if(UserDao.verifyAuthentification(userReceived,  connectionSource)){ //si true, existe
+             //idsession
+            userReceived.setIdSession(createIdSession());
+             UserDao.createUpdateUser(userReceived,  connectionSource); ///creer une user
+             return new UserBean(userReceived.getIdSession());
+
+         } throw new Exception("User pseudo or password are incorrect!");
      }
 
-     catch(Exception e) {
+     catch(Exception e){
          e.printStackTrace();
          return new ErrorBean(e.getMessage());
 
-
-         //comment eviter lerreur de close connection
+        //fermer connexion
      }finally{
          try {
-             conexao.closeConnection();
+             connectionSource.close();
          } catch (IOException e) {
              e.printStackTrace();
          }
@@ -183,4 +252,4 @@ public class ChatAPI {
 
 
 
-}//fecha a class
+}

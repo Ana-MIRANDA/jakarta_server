@@ -3,7 +3,8 @@ package chat.demo.beans;
 import com.j256.ormlite.field.DatabaseField;
 import com.j256.ormlite.table.DatabaseTable;
 
-// avec @DatabaseTable on va indiquer le nom de la table e @DatabaseField on defini chaque champ de la table
+
+// avec @DatabaseTable on va indiquer le nom de la table et @DatabaseField defini chaque champ de la table
 @DatabaseTable(tableName = "message")
 public class MessageBean {
     @DatabaseField(generatedId = true)
@@ -12,11 +13,14 @@ public class MessageBean {
     private String content;
     @DatabaseField(foreign = true)
     private UserBean user;
+    @DatabaseField
+    private Long date;
 
 //constructor1
-    public MessageBean(String content, UserBean user) {
+    public MessageBean(String content, UserBean user, Long date) {
         this.content = content;
         this.user = user;
+        this.date = date;
     }
 
 //constructor 2
@@ -46,5 +50,13 @@ public class MessageBean {
 
     public void setUser(UserBean user) {
         this.user = user;
+    }
+
+    public Long getDate() {
+        return date;
+    }
+
+    public void setDate(Long date) {
+        this.date = date;
     }
 }

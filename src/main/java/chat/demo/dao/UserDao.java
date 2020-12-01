@@ -13,48 +13,49 @@ import java.util.Map;
 
 public class UserDao {
 
-    // DAO pour usar UserBean pour utiliser pour requetes, updates, delete, etc
+
     public static Dao<UserBean, Long> getDaoUser(JdbcConnectionSource jdbc) throws SQLException {
         return DaoManager.createDao(jdbc, UserBean.class);
     }
 
-//Criar user se ele ainda nao existe na BDD. se existir fica com o id do 1° user da lista retornada com users que tem o mmo nome
-    public static void createUser(UserBean user, JdbcConnectionSource jdbc) throws SQLException {
-            getDaoUser(jdbc).createOrUpdate(user); //create user do tipo userBean e getDaoUser e a minha ORM/tipo sql insert into
+// Creer user
+    public static void createUpdateUser(UserBean user, JdbcConnectionSource jdbc) throws SQLException {
+            getDaoUser(jdbc).createOrUpdate(user);
     }
 
 
-
-///Comparar user com id em parametro
+//Comparer users par id
     public static UserBean getUserById( Long unId, JdbcConnectionSource jdbc) throws SQLException {
-        return getDaoUser(jdbc).queryForId(unId); //retorna o user que tiver o id que se quer
+        return getDaoUser(jdbc).queryForId(unId);
     }
 
-/// Verificar se pseudo ja existe antes de criar um novo user
+ // Search user by idSession
+ public static List<UserBean> getUserByIdSession( String unIdSession, JdbcConnectionSource jdbc) throws SQLException {
+     return getDaoUser(jdbc).queryForEq("idSession", unIdSession); //retourne une liste avec user que tiver o idSession enviado pelo client
+ }
+
+
+// Verifier si user exists avant de creer un nouveau user
     public static Boolean userExists(String userPseudo, JdbcConnectionSource jdbc) throws SQLException {
         List<UserBean> listSamePseudo = getDaoUser(jdbc).queryForEq("pseudo",userPseudo);// faz a query como se fosse where em sql e "pseudo" e o nome da coluna da BDD
-        if (listSamePseudo.isEmpty()) {
-            return false;
-        } else {
-            return true;
-        }
+       return !listSamePseudo.isEmpty();
     }
 
 
     public static Boolean verifyAuthentification(UserBean user, JdbcConnectionSource jdbc ) throws SQLException {
 
-        //Map é colecao de chaves - valor. E a query em OrmLite para ir procurar user com pseudo e pass iguais aos dos inputs
+        //Map est la collection key-value . La query ORMLite pour chercher user avec pseudo et psw indiques dans les inputs
         Map<String, Object> infos = new HashMap<String, Object>();
         infos.put("pseudo", user.getPseudo());
         infos.put("password", user.getPassword());
         List<UserBean> listSameInfos = getDaoUser(jdbc).queryForFieldValues(infos);
 
         if(listSameInfos.isEmpty()){
-            return false; //lista vazia o gajo nao existe (exemplo  engano num dos inputs)
-        } user.setId(listSameInfos.get(0).getId()); //ao verificar que ele existe, para nao retornar id null, temos de lhe dar o id que lhe pertence, neste caso o que estiver no index 0
-        return true; //user+pass estao corretos
+            return false;
+        } user.setId(listSameInfos.get(0).getId());
+        return true; //user+pass sont OK
     }
 
 
-}//fecha class
+}
 

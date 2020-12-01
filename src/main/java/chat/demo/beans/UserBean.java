@@ -9,11 +9,11 @@ public class UserBean {
     private Long id;
     @DatabaseField
     private String pseudo;
-
-
-
     @DatabaseField
     private String password;
+     @DatabaseField
+    private String idSession;
+
 
 
 //constructor 1
@@ -33,6 +33,11 @@ public class UserBean {
 //constructor 3
     public UserBean() {
     }
+
+//construtor 4
+public UserBean(String idSession) {
+    this.idSession = idSession;
+}
 
 
 //___getters and setters
@@ -58,5 +63,14 @@ public class UserBean {
 
     public void setPassword(String password) {
         this.password = password;
+    }
+
+
+    public String getIdSession() {
+        return idSession;
+    }
+
+    public void setIdSession(String idSession) {
+        this.idSession = idSession;
     }
 }

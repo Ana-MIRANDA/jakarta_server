@@ -9,7 +9,7 @@ public class  DaoConnexion {
 
     private JdbcConnectionSource connectionSource;
 
-//Creer la connection
+//Creer la connection a la BDD
     public JdbcConnectionSource createConnection() throws SQLException {
 
         this.connectionSource = new JdbcConnectionSource( Constants.URL, Constants.LOGIN, Constants.PASSWORD);

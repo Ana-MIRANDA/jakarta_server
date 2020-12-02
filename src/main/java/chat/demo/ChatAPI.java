@@ -88,7 +88,7 @@ public class ChatAPI {
 //2.quand on arrive a la pagehome on demande la liste de messages
 
     //http://localhost:8080/listeMsg
-    @GetMapping("/listeMsg")
+    @PostMapping("/listeMsg")
     public Object demanderListeMsg(@RequestBody UserBean u) throws Exception { //vai receber do cliente o idSession q permite veriifcar se o idSession e valido
 
         System.out.println("/listeMsg");
